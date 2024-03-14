@@ -13,25 +13,41 @@ const (
 )
 
 type ZPacketSerializer struct {
+	packetQueue   *ZPacketQueue
 	packetToSend  *ZPacket
 	curWriteState packetWriteState
 	curDataI      int
 	curCalcedCRC  byte
 }
 
+// TODO: Verify that we implemented io.Writer correctly and not as we thought was best
 func (this *ZPacketSerializer) Write(data []byte) (int, error) {
 	numBytesWritten := 0
 	dataLen := len(data)
 
 	if dataLen == 0 {
-		return 0, nil
-	}
-
-	if this.packetToSend == nil {
-		return 0, errors.New("No packet currently available to send")
+		return 0, errors.New("Unable to write packet due to empty buffer")
 	}
 
 	for i := 0; i < dataLen; i++ {
+		//Need to get the next packet to send if we don't have one ready
+		if this.packetToSend == nil {
+			if this.packetQueue != nil {
+				this.packetToSend = this.packetQueue.Pull()
+
+				if this.packetToSend == nil {
+					if numBytesWritten == 0 {
+						//There is nothing to send and nothing was sent
+						return 0, errors.New("No packet currently available to send")
+					} else {
+						//We actually sent some data but nothing else to send
+						return numBytesWritten, nil
+					}
+				}
+			}
+
+		}
+
 		if this.curWriteState == writeDestination {
 			this.curCalcedCRC = byte(this.packetToSend.destinationAddress)
 			data[i] = byte(this.packetToSend.destinationAddress)
@@ -62,8 +78,7 @@ func (this *ZPacketSerializer) Write(data []byte) (int, error) {
 		} else if this.curWriteState == writeCRC {
 			data[i] = this.curCalcedCRC
 			this.reset()
-			//Break since we have nothing else to write
-			break
+
 		} else {
 			panic(errors.New("Panic as ZPacketSerializer is an unknown state which should never have happened"))
 		}
@@ -71,6 +86,7 @@ func (this *ZPacketSerializer) Write(data []byte) (int, error) {
 		numBytesWritten++
 	}
 
+	//If we got here then we should have been able to fill the buffer up
 	return numBytesWritten, nil
 }
 
@@ -85,11 +101,12 @@ func (this *ZPacketSerializer) AddPacketToSend(p *ZPacket) error {
 		return errors.New("Unable to send nil ZPacket")
 	}
 	//We are already sending a packet lets not interrupt
-	if this.packetToSend != nil {
-		return errors.New("Unable to send packet due to ZPacketSerializer currently sending packet")
+	if this.packetQueue == nil {
+		this.packetQueue = &ZPacketQueue{}
 	}
 
-	this.packetToSend = p
+	this.packetQueue.Push(p)
+
 	return nil
 }
 
