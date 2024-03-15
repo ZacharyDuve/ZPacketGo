@@ -13,7 +13,7 @@ const (
 )
 
 type ZPacketSerializer struct {
-	packetQueue   *ZPacketQueue
+	packetQueue   *zPacketQueue
 	packetToSend  *ZPacket
 	curWriteState packetWriteState
 	curDataI      int
@@ -25,10 +25,7 @@ func (this *ZPacketSerializer) Write(data []byte) (int, error) {
 	numBytesWritten := 0
 	dataLen := len(data)
 
-	if dataLen == 0 {
-		return 0, errors.New("Unable to write packet due to empty buffer")
-	}
-
+	//No Need to error check for len(data) == 0 as that is ok as defined by io.Reader. In that case return 0 and nil
 	for i := 0; i < dataLen; i++ {
 		//Need to get the next packet to send if we don't have one ready
 		if this.packetToSend == nil {
@@ -53,11 +50,11 @@ func (this *ZPacketSerializer) Write(data []byte) (int, error) {
 			data[i] = byte(this.packetToSend.destinationAddress)
 			this.curWriteState = writeSender
 		} else if this.curWriteState == writeSender {
-			this.XORCRC(byte(this.packetToSend.senderAddress))
+			this.curWriteStxorateCRC(byte(this.packetToSend.senderAddress))
 			data[i] = byte(this.packetToSend.senderAddress)
 			this.curWriteState = writeDataLength
 		} else if this.curWriteState == writeDataLength {
-			this.XORCRC(byte(dataLen))
+			this.curWriteStxorateCRC(byte(dataLen))
 			data[i] = byte(dataLen)
 
 			if dataLen == 0 {
@@ -67,7 +64,7 @@ func (this *ZPacketSerializer) Write(data []byte) (int, error) {
 				this.curWriteState = writeData
 			}
 		} else if this.curWriteState == writeData {
-			this.XORCRC(this.packetToSend.data[this.curDataI])
+			this.curWriteStxorateCRC(this.packetToSend.data[this.curDataI])
 			data[i] = this.packetToSend.data[this.curDataI]
 			this.curDataI++
 
@@ -96,13 +93,13 @@ func (this *ZPacketSerializer) reset() {
 	this.packetToSend = nil
 }
 
-func (this *ZPacketSerializer) AddPacketToSend(p *ZPacket) error {
+func (this *ZPacketSerializer) SerializePacket(p *ZPacket) error {
 	if p == nil {
 		return errors.New("Unable to send nil ZPacket")
 	}
 	//We are already sending a packet lets not interrupt
 	if this.packetQueue == nil {
-		this.packetQueue = &ZPacketQueue{}
+		this.packetQueue = &zPacketQueue{}
 	}
 
 	this.packetQueue.Push(p)
@@ -110,10 +107,6 @@ func (this *ZPacketSerializer) AddPacketToSend(p *ZPacket) error {
 	return nil
 }
 
-func (this *ZPacketSerializer) AvailableToSendPacket() bool {
-	return this.packetToSend == nil
-}
-
-func (this *ZPacketSerializer) XORCRC(d byte) {
+func (this *ZPacketSerializer) curWriteStxorateCRC(d byte) {
 	this.curCalcedCRC ^= d
 }

@@ -6,8 +6,10 @@ import (
 
 type ZPacketAddress byte
 
-const DATA_MAX_LENGTH = 255
-const MAX_ADDRESS = 63
+const (
+	DATA_MAX_LENGTH = 255
+	MAX_ADDRESS     = 63
+)
 
 type ZPacket struct {
 	destinationAddress ZPacketAddress
