@@ -11,7 +11,7 @@ const (
 	readData
 	readCRC
 
-	nilReferenceErrorMessage string = "ZPacketDeserializer Error: Read called on a nil reference to ZPacketDeserializer"
+	nilDeserializerReferenceErrorMessage string = "error Read called on a nil reference to ZPacketDeserializer"
 )
 
 type ZPacketDeserializer struct {
@@ -29,7 +29,7 @@ type ZPacketDeserializer struct {
 func (this *ZPacketDeserializer) Read(data []byte) (int, error) {
 
 	if this == nil {
-		return 0, errors.New(nilReferenceErrorMessage)
+		return 0, errors.New(nilDeserializerReferenceErrorMessage)
 	}
 
 	// If this curPacketData is zero due to first run through then we need to initialize the curPacketData
@@ -119,5 +119,5 @@ func (this *ZPacketDeserializer) Packets() []*ZPacket {
 }
 
 func IsZPacketDeserializerNilReferenceError(err error) bool {
-	return err != nil && err.Error() == nilReferenceErrorMessage
+	return err != nil && err.Error() == nilDeserializerReferenceErrorMessage
 }

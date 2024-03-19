@@ -10,10 +10,12 @@ const (
 	writeDataLength
 	writeData
 	writeCRC
+
+	nilSerializerReferenceErrorMessage string = "error Read called on a nil reference to ZPacketDeserializer"
 )
 
 type ZPacketSerializer struct {
-	packetQueue   *zPacketQueue
+	packetQueue   zPacketQueue
 	packetToSend  *ZPacket
 	curWriteState packetWriteState
 	curDataI      int
@@ -22,6 +24,12 @@ type ZPacketSerializer struct {
 
 // TODO: Verify that we implemented io.Writer correctly and not as we thought was best
 func (this *ZPacketSerializer) Write(data []byte) (int, error) {
+
+	if this == nil {
+		//Our ref
+		return 0, nil
+	}
+
 	numBytesWritten := 0
 	dataLen := len(data)
 
@@ -29,17 +37,15 @@ func (this *ZPacketSerializer) Write(data []byte) (int, error) {
 	for i := 0; i < dataLen; i++ {
 		//Need to get the next packet to send if we don't have one ready
 		if this.packetToSend == nil {
-			if this.packetQueue != nil {
-				this.packetToSend = this.packetQueue.Pull()
+			this.packetToSend = this.packetQueue.Pull()
 
-				if this.packetToSend == nil {
-					if numBytesWritten == 0 {
-						//There is nothing to send and nothing was sent
-						return 0, errors.New("No packet currently available to send")
-					} else {
-						//We actually sent some data but nothing else to send
-						return numBytesWritten, nil
-					}
+			if this.packetToSend == nil {
+				if numBytesWritten == 0 {
+					//There is nothing to send and nothing was sent
+					return 0, errors.New("no packet currently available to send")
+				} else {
+					//We actually sent some data but nothing else to send
+					return numBytesWritten, nil
 				}
 			}
 
@@ -77,7 +83,7 @@ func (this *ZPacketSerializer) Write(data []byte) (int, error) {
 			this.reset()
 
 		} else {
-			panic(errors.New("Panic as ZPacketSerializer is an unknown state which should never have happened"))
+			panic(errors.New("panic as ZPacketSerializer is an unknown state which should never have happened"))
 		}
 
 		numBytesWritten++
@@ -95,7 +101,7 @@ func (this *ZPacketSerializer) reset() {
 
 func (this *ZPacketSerializer) SerializePacket(p *ZPacket) error {
 	if p == nil {
-		return errors.New("Unable to send nil ZPacket")
+		return errors.New("unable to send nil ZPacket")
 	}
 	//We are already sending a packet lets not interrupt
 	if this.packetQueue == nil {
