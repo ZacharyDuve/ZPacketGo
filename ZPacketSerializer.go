@@ -53,7 +53,8 @@ func (this *ZPacketSerializer) Write(data []byte) (int, error) {
 
 		if this.curWriteState == writeDestination {
 			this.curCalcedCRC = byte(this.packetToSend.destinationAddress)
-			data[i] = byte(this.packetToSend.destinationAddress)
+			//Need to add on the bit sequence for the packet start to the destination address
+			data[i] = byte(this.packetToSend.destinationAddress) | packet_start_bit_identifier
 			this.curWriteState = writeSender
 		} else if this.curWriteState == writeSender {
 			this.curWriteStxorateCRC(byte(this.packetToSend.senderAddress))
@@ -100,12 +101,13 @@ func (this *ZPacketSerializer) reset() {
 }
 
 func (this *ZPacketSerializer) SerializePacket(p *ZPacket) error {
+
+	if this == nil {
+		return errors.New(nilSerializerReferenceErrorMessage)
+	}
+
 	if p == nil {
 		return errors.New("unable to send nil ZPacket")
-	}
-	//We are already sending a packet lets not interrupt
-	if this.packetQueue == nil {
-		this.packetQueue = &zPacketQueue{}
 	}
 
 	this.packetQueue.Push(p)
@@ -115,4 +117,8 @@ func (this *ZPacketSerializer) SerializePacket(p *ZPacket) error {
 
 func (this *ZPacketSerializer) curWriteStxorateCRC(d byte) {
 	this.curCalcedCRC ^= d
+}
+
+func IsZPacketSerializerNilReferenceError(e error) bool {
+	return e.Error() == nilSerializerReferenceErrorMessage
 }

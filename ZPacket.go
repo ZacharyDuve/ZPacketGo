@@ -9,6 +9,10 @@ type ZPacketAddress byte
 const (
 	DATA_MAX_LENGTH = 255
 	MAX_ADDRESS     = 63
+
+	address_mask                     byte = 0b0011_1111
+	packet_start_bit_identifier      byte = 0b1000_0000
+	packet_start_bit_identifier_mask byte = ^address_mask
 )
 
 type ZPacket struct {

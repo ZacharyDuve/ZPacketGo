@@ -46,16 +46,24 @@ func (this *ZPacketDeserializer) Read(data []byte) (int, error) {
 	numberBytesRead := 0
 
 	for _, curByte := range data {
+		numberBytesRead++
+
 		switch this.curState {
 		case readDestinationAddress:
 			{
-				this.curPacketDestination = curByte
-				this.curPacketCalcedCRC = curByte
-				this.curState = readSenderAddress
+				if curByte&packet_start_bit_identifier_mask == packet_start_bit_identifier {
+					//Only process if we had the packet start bit sequence in this byte
+
+					//Also need to remove the packet start sequence from the destination address
+					this.curPacketDestination = curByte & address_mask
+					this.curPacketCalcedCRC = curByte
+					this.curState = readSenderAddress
+				}
 			}
 		case readSenderAddress:
 			{
-				this.curPacketSender = curByte
+				//Need to mask off the address as of V1 of spec 2 MSB of sender address are reserved
+				this.curPacketSender = curByte & address_mask
 				this.curPacketCalcedCRC ^= curByte
 				this.curState = readDataLength
 			}
